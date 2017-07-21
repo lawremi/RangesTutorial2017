@@ -1,0 +1,320 @@
+# -*- org-export-babel-evaluate: (quote inline-only);  -*-
+#+TITLE: Exploring the Ranges Infrastructure
+
+#+OPTIONS: toc:t H:2
+#+PROPERTY: session *R:RangesTutorial2017*
+#+PROPERTY: exports both
+#+PROPERTY: results output
+#+PROPERTY: eval no-export
+#+PROPERTY: tangle yes
+
+#+begin_latex
+\tikzset{
+  every overlay node/.style={
+    draw=black,fill=white,rounded corners,anchor=north west,
+  },
+}
+% Usage:
+% \tikzoverlay at (-1cm,-5cm) {content};
+% or
+% \tikzoverlay[text width=5cm] at (-1cm,-5cm) {content};
+\def\tikzoverlay{%
+   \tikz[baseline,overlay]\node[every overlay node]
+}%
+#+end_latex
+
+* Introduction
+** The Ranges infrastructure: what is it good for?
+   # TODO: make hexicons for these, use instead of text
+   #       use hexicons in latter slides to refer back
+   #       could have arrows indicating natural progression from
+   #       exploration => methods development => software
+   Provides *data structures* and *algorithms* for:
+   * Data integration in exploratory analyses
+   * Developing and prototyping methods
+   * Software integration
+
+** Software integration
+   # The architecture of the infrastructure (dependencies)
+   # Including # of reverse deps for each package
+   # Could we do this with hexicons? And then use them throughout the
+   #   presentation to indicate which package(s) we are using?
+   # Could use vertical dimension to indicate dependencies,
+   # horizontal to indicate workflow?
+   # - For example, rtracklayer is for data access.
+   # Could have grayed out hexicons for important pieces that are not
+   # part of the infrastructure proper.
+   
+** Data processing pipelines
+   # Have pipeline icon, with attached icons for each of these
+   Examples (from my previous tutorials):
+   * Peak calling
+   * Isoform-specific read counting
+   * Variant calling (twice)
+
+** Data integration
+   # Should show a genome browser plot here
+   # - Could be same plot as for Data types slide, below
+   * Different types of data can be stored in compatible data structures
+   * Genomic data are all related through genomic coordinates
+
+* Data structures
+** Data types
+   * Ranges on the genome or other set of sequences
+   * Genome-scale vectors, like coverage
+   * Summarized assay data, typically range-associated
+
+   # TODO: perhaps a ranges-linked-to-data plot?
+   # - should include ranges and coverage/conservation or something
+
+** SummarizedExperiment: the central data model
+   # data processing => canonical SE diagram => modeling, plots
+   
+** Reality
+   * In practice, we have a BED file:
+
+     # Some > ls *.bed call with output
+
+   * And we turn to R as a convenient way to analyze the data
+
+     # Example of read.table(), head()
+
+   * And everything makes sense
+     
+** Reality bites
+   * Now for a GFF file:
+
+  # 2) Difficulty validating input to functions.
+  
+   * Oops, confused about the column name
+
+   * But wait, do ranges start at 0 or 1, open or closed?
+     
+  # 1) Format peculiarities: have to subtract 1 from the start.
+
+** From reality to ideality
+   #+begin_latex
+   \framesubtitle{The abstraction gradient}
+   #+end_latex
+   * Abstraction is semantic enrichment
+     * Enables the user to think of data in terms of the problem domain
+     * Hides implementation details
+       
+   # step-wise increasing 'abstraction level' plot, above which
+   # we have a BED file (icon) and tools with thought bubbles
+   #
+   # sed/awk .:`"A text file"
+   # read.table() .:`"A tab-separated file representing a table"
+   # rtracklayer::import .:`"A BED file representing genomic ranges"
+   # user .:`"Gene coordinates"
+
+   # Only the user is aware of the abstraction target, so the user
+   # is responsible for informing the system about the semantics.
+   
+** Abstraction in practice
+   * Data distribution relies on low-level (LCD) communication
+   * Only the user is aware of the abstraction target, so the user is
+     responsible for informing the system about the semantics.
+     
+  # Could make the case that constructing formal objects is
+  # analogous to tidying step in data science workflow.
+  
+   * Science defies rigidity: we need hybrid objects that combine
+     strongly typed fields with arbitrary user-level metadata
+
+** Classes are tools for abstraction
+   * Class name is a convenient alias for a semantics definition
+   * Formal representation of structure and constraints, with
+     automatic validation
+   * Inheritance enables:
+     * Providing multiple implementations, transparent to the user
+     * Layering of semantics, enabling interoperability between tools
+       with different but consistent interpretations of the data
+     
+   # diagram of VRanges => GRanges, findOverlaps() [arrow to GRanges]
+   # just sees ranges (thought bubble), match() [arrow to VRanges],
+   # "ALT matters" (thought bubble).
+   
+** There's a class for that
+  # Then show mapping from data types to classes, using arrows
+  # between hexicons. Maybe just unlabeled to labeled? Or
+  # scratch out the generic names and replace with class names?
+
+* Algorithms
+** The Ranges API
+   * Semantically rich data enables:
+     * Semantically rich vocabularies and grammars
+     * Semantically aware behavior (DWIM)
+   * The range algebra expresses typical range-oriented operations
+   * Base R API is extended to have range-oriented behaviors
+
+** The Ranges API: Examples
+   | Type          | Range operations          | Range extensions     |
+   |---------------+---------------------------+----------------------|
+   | *Filter*      | subsetByOverlaps()        | [()                  |
+   | *Transform*   | shift(), resize()         | *() to zoom          |
+   | *Aggregation* | coverage(), reduce()      | intersect(), union() |
+   | *Comparison*  | findOverlaps(), nearest() | match(), sort()      |
+   
+** Range transformations
+   # data processing
+   # figure from the Ranges paper?
+
+** Coverage
+   # data processing
+   
+** Overlap detection
+   # processing, data integration (joins!)
+   
+* Example workflow: Structural variants
+** Structural variants are important for disease
+   * SVs are rarer than SNVs
+     * SNVs: ~ 4,000,000 per genome
+     * SVs: 5,000 - 10,000 per genome
+   * However, SVs are much larger (typically > 1kb) and cover more
+     genomic space than SNVs.
+   * The effect size of SV associations with disease is larger than
+     those of SNVs.
+     * SVs account for 13% of GTEx eQTLs
+     * SVs are 26 - 54 X more likely to modulate expression than SNVs
+       (or indels)
+
+** Detection of deletions from WGS data
+   #+LATEX: :width 11cm
+   [[file:slides/sv-detection-1.pdf]]
+   
+** Problem
+   * Often need to evaluate a tool before adding it to our workflow
+   * "lumpy" is a popular SV caller
+
+*** Goal
+    Evaluate the performance of lumpy
+
+** Data
+   * Simulated a FASTQ containing known deletions using varsim
+   * Aligned the reads with BWA
+   * Ran lumpy on the alignments
+
+** Overview
+   1. Import the lumpy calls and truth set
+   2. Tidy the data
+   3. Match the calls to the truth
+   4. Compute error rates
+   5. Diagnose errors
+      
+** Data import
+   Read from VCF:
+   #+begin_src R
+     library(RangesTutorial2017)
+     calls <- readVcf(system.file("extdata", "lumpy.vcf.gz",
+                                  package="RangesTutorial2017"))
+     truth <- readVcf(system.file("extdata", "truth.vcf.bgz",
+                                  package="RangesTutorial2017"))
+   #+end_src
+
+   Select for deletions:
+   #+begin_src R
+   truth <- subset(truth, SVTYPE=="DEL")
+   calls <- subset(calls, SVTYPE=="DEL")
+   #+end_src
+   
+** Data cleaning
+   Make the seqlevels compatible:
+   #+begin_src R
+   seqlevelsStyle(calls) <- "NCBI"
+   truth <- keepStandardChromosomes(truth, pruning.mode="coarse")
+   #+end_src
+
+** Tighten
+   Move from the constrained VCF representation to a range-oriented
+   model (/VRanges/) with a tighter cognitive link to the problem:
+   #+begin_src R
+     calls <- as(calls, "VRanges")
+     truth <- as(truth, "VRanges")
+   #+end_src
+
+** More cleaning
+   Homogenize the ALT field:
+   #+begin_src R
+   ref(truth) <- "."
+   #+end_src
+   
+   Remove the flagged calls with poor read support:
+   #+begin_src R
+     calls <- calls[called(calls)]
+   #+end_src
+
+** Comparison
+   * How to decide whether a call represents a true event?
+   * Ranges should at least overlap:
+   #+begin_src R
+     hits <- findOverlaps(truth, calls)
+   #+end_src
+   * But more filtering is needed.
+
+** Comparing breakpoints
+   Compute the deviation in the breakpoints:
+   #+begin_src R
+     hits <- as(hits, "List")
+     call_rl <- extractList(ranges(calls), hits)
+     dev <- abs(start(truth) - start(call_rl)) + abs(end(truth) - end(call_rl))
+   #+end_src
+
+   Select and store the call with the least deviance, per true deletion:
+   #+begin_src R
+     dev_ord <- order(dev)
+     keep <- phead(dev_ord, 1L)
+     truth$deviance <- drop(dev[keep])
+     truth$call <- drop(hits[keep])
+   #+end_src
+   
+** Choosing a deviance cutoff
+   #+begin_src R
+     library(ggplot2)
+     rdf <- as.data.frame(truth)
+     ggplot(aes(x=deviance),
+            data=subset(rdf, deviance <= 500)) +
+         stat_ecdf() + ylab("fraction <= deviance")
+   #+end_src
+
+** Choosing a deviance cutoff
+   [[file:ecdf-deviance.pdf]]
+
+** Applying the deviance filter
+   #+begin_src R
+     truth$called <- with(truth, !is.na(deviance) & deviance <= 300)
+   #+end_src
+   
+** Sensitivity
+   #+begin_src R
+   mean(truth$called)
+   #+end_src
+   
+** Specificity
+   Determine which calls were true:
+   #+begin_src R
+     calls$fp <- TRUE
+     calls$fp[subset(truth, called)$call] <- FALSE
+   #+end_src
+
+   Compute FDR:
+   #+begin_src R
+     mean(calls$fp)
+   #+end_src
+   
+** FDR and variable "alt" regions
+   * Suspect that calls may be error-prone in regions where the
+     population varies
+   * Load alt regions from a BED file:
+     #+begin_src R
+       altRegions <- import(system.file("extdata", "altRegions.GRCh38.bed.gz",
+                                        package="RangesTutorial2017"))
+       seqlevelsStyle(altRegions) <- "NCBI"
+       altRegions <- keepStandardChromosomes(altRegions, pruning.mode="coarse")
+     #+end_src
+   * Compute the association between FP status and overlap of an alt
+     region:
+     #+begin_src R
+       calls$inAlt <- calls %over% altRegions
+       xtabs(~ inAlt + fp, calls)
+     #+end_src

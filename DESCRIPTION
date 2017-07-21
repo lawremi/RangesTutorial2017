@@ -1,0 +1,15 @@
+Package: RangesTutorial2017
+Type: Package
+Title: Support Material for the Bioc2017 Ranges Tutorial
+Version: 0.99.0
+Author: Michael Lawrence
+Maintainer: Michael Lawrence <michafla@gene.com>
+Description: Contains data and vignettes in support of the Ranges tutorial at
+	     the Bioc 2017 conference. The first half of the tutorial was a
+	     structured introduction to the Ranges infrastructure, including
+	     a simple workflow around evaluating a set of structural
+	     variant calls. The other half of the tutorial
+	     was half open-ended discussion and is not represented here.
+License: GPL (>= 2)
+Suggests: BiocStyle, GenomicRanges
+Depends: IRanges (>= 2.11.12), VariantAnnotation (>= 1.23.6)

@@ -1,0 +1,217 @@
+# -*- org-export-babel-evaluate: (quote inline-only);  -*-
+#+TITLE: Exploring the Ranges Infrastructure
+
+#+OPTIONS: toc:t H:2
+#+PROPERTY: session *R:RangesTutorial2017*
+#+PROPERTY: exports both
+#+PROPERTY: results output
+#+PROPERTY: eval no-export
+
+* Example workflow: Structural variants
+** Structural variants are important for disease
+   * SVs are rarer than SNVs
+     * SNVs: ~ 4,000,000 per genome
+     * SVs: 5,000 - 10,000 per genome
+   * However, SVs are much larger (typically > 1kb) and cover more
+     genomic space than SNVs.
+   * The effect size of SV associations with disease is larger than
+     those of SNVs.
+     * SVs account for 13% of GTEx eQTLs
+     * SVs are 26 - 54 X more likely to modulate expression than SNVs
+       (or indels)
+
+** Detection of deletions from WGS data
+   [[file:sv-detection-1.pdf]]
+   
+** Goal
+   Evaluate the performance of lumpy, a structural variant caller
+
+** Data
+   * Simulated a FASTQ containing known deletions using varsim
+   * Aligned the reads with BWA
+   * Ran lumpy on the alignments
+
+** Overview
+   1. Import the lumpy calls and truth set
+   2. Tidy the data
+   3. Match the calls to the truth
+   4. Compute error rates
+   5. Diagnose errors
+      
+** Data import
+   :PROPERTIES:
+   :ID:       9CD195B6-D5EC-4353-8722-7695FB37298C
+   :END:
+   Read from VCF:
+   #+begin_src R
+     library(RangesTutorial2017)
+     calls <- readVcf(system.file("extdata", "lumpy.vcf.gz",
+                                  package="RangesTutorial2017"))
+     truth <- readVcf(system.file("extdata", "truth.vcf.bgz",
+                                  package="RangesTutorial2017"))
+   #+end_src
+
+   Select for deletions:
+   #+begin_src R
+   truth <- subset(truth, SVTYPE=="DEL")
+   calls <- subset(calls, SVTYPE=="DEL")
+   #+end_src
+   
+** Data cleaning
+   :PROPERTIES:
+   :ID:       20CDD046-C0C5-4604-B3C9-496D662676FA
+   :END:
+   Make the seqlevels compatible:
+   #+begin_src R
+     seqlevelsStyle(calls) <- "NCBI"
+     truth <- keepStandardChromosomes(truth,
+                                      pruning.mode="coarse")
+   #+end_src
+
+** Tighten
+   :PROPERTIES:
+   :ID:       9E5D0046-4D84-467E-907C-BD5AD4DA94E4
+   :END:
+   Move from the constrained VCF representation to a range-oriented
+   model (/VRanges/) with a tighter cognitive link to the problem:
+   #+begin_src R
+     calls <- as(calls, "VRanges")
+     truth <- as(truth, "VRanges")
+   #+end_src
+
+** More cleaning
+   :PROPERTIES:
+   :ID:       950D2BE7-0925-49A8-AA1F-5B50892B7359
+   :END:
+   Homogenize the ALT field:
+   #+begin_src R
+   ref(truth) <- "."
+   #+end_src
+   
+   Remove the flagged calls with poor read support:
+   #+begin_src R
+     calls <- calls[called(calls)]
+   #+end_src
+
+** Comparison
+   :PROPERTIES:
+   :ID:       DDAC1434-C5CC-4768-9086-9A8EDA281598
+   :END:
+   * How to decide whether a call represents a true event?
+   * Ranges should at least overlap:
+   #+begin_src R
+     hits <- findOverlaps(truth, calls)
+   #+end_src
+   * But more filtering is needed.
+
+** Comparing breakpoints
+   :PROPERTIES:
+   :ID:       995C3CD4-5063-4717-8415-C6D4FCCD8B68
+   :END:
+   Compute the deviation in the breakpoints:
+   #+begin_src R
+     hits <- as(hits, "List")
+     call_rl <- extractList(ranges(calls), hits)
+     dev <- abs(start(truth) - start(call_rl)) +
+         abs(end(truth) - end(call_rl))
+   #+end_src
+
+   Select and store the call with the least deviance, per true deletion:
+   #+begin_src R
+     dev_ord <- order(dev)
+     keep <- phead(dev_ord, 1L)
+     truth$deviance <- drop(dev[keep])
+     truth$call <- drop(hits[keep])
+   #+end_src
+   
+** Choosing a deviance cutoff
+   :PROPERTIES:
+   :ID:       A326EC0F-ED12-4885-8693-0EFE3F83156F
+   :END:
+   #+begin_src R
+     library(ggplot2)
+     rdf <- as.data.frame(truth)
+     ggplot(aes(x=deviance),
+            data=subset(rdf, deviance <= 500)) +
+         stat_ecdf() + ylab("fraction <= deviance")
+   #+end_src
+
+** Choosing a deviance cutoff
+   #+ATTR_LATEX: :width 7cm
+   [[file:ecdf-deviance.pdf]]
+
+** Applying the deviance filter
+   :PROPERTIES:
+   :ID:       DC36A7EA-B53C-493B-AAD4-5C7CAC41ED11
+   :END:
+   #+begin_src R
+     truth$called <- with(truth,
+                          !is.na(deviance) & deviance <= 300)
+   #+end_src
+   
+** Sensitivity
+   :PROPERTIES:
+   :ID:       701C34E9-1571-46CD-9F08-7BC1CC195EFA
+   :END:
+   #+begin_src R
+   mean(truth$called)
+   #+end_src
+
+   #+RESULTS:
+   : 0.82
+
+   
+** Specificity
+   :PROPERTIES:
+   :ID:       CF61DB49-2656-4148-A8AA-F56258405B01
+   :END:
+   Determine which calls were true:
+   #+begin_src R
+     calls$fp <- TRUE
+     calls$fp[subset(truth, called)$call] <- FALSE
+   #+end_src
+
+   Compute FDR:
+   #+begin_src R
+     mean(calls$fp)
+   #+end_src
+
+   #+RESULTS:
+   : 0.10
+
+   
+** FDR and variable "alt" regions
+   :PROPERTIES:
+   :ID:       ED636AF5-B133-4FEB-B7F3-3E8ACA845A81
+   :END:
+   * Suspect that calls may be error-prone in regions where the
+     population varies
+   * Load alt regions from a BED file:
+     #+begin_src R
+       bed <-
+           system.file("extdata", "altRegions.GRCh38.bed.gz",
+                       package="RangesTutorial2017")
+       altRegions <- import(bed)
+       seqlevelsStyle(altRegions) <- "NCBI"
+       altRegions <-
+           keepStandardChromosomes(altRegions,
+                                   pruning.mode="coarse")
+     #+end_src
+
+** FDR highly associated with "alt" regions
+   :PROPERTIES:
+   :ID:       AED5A628-7B7B-40E2-ACFA-F738AB077BBF
+   :END:
+     Compute the association between FP status and overlap of an alt
+     region:
+     #+begin_src R
+       calls$inAlt <- calls %over% altRegions
+       xtabs(~ inAlt + fp, calls)
+     #+end_src
+
+     #+RESULTS:
+     | inAlt | fp:FALSE | fp:TRUE |
+     |-------+----------+---------|
+     | FALSE |     1402 |     112 |
+     | TRUE  |       58 |      52 |
+
