@@ -1,3 +1,9 @@
+df <- read.table("my.bed", sep="\t")
+colnames(df) <- c("chrom", "start", "end")
+
+df <- read.table("my.bed", sep="\t")
+colnames(df) <- c("chr", "start", "end")
+
 library(RangesTutorial2017)
 calls <- readVcf(system.file("extdata", "lumpy.vcf.gz",
                              package="RangesTutorial2017"))
@@ -40,8 +46,8 @@ ggplot(aes(x=deviance),
        data=subset(rdf, deviance <= 500)) +
     stat_ecdf() + ylab("fraction <= deviance")
 
-truth$called <- with(truth,
-                     !is.na(deviance) & deviance <= 300)
+truth$called <-
+    with(truth, !is.na(deviance) & deviance <= 300)
 
 mean(truth$called)
 
@@ -52,10 +58,10 @@ calls$fp[subset(truth, called)$call] <- FALSE
 
 mean(calls$fp)
 
-bed <-
-    system.file("extdata", "altRegions.GRCh38.bed.gz",
-                package="RangesTutorial2017")
-altRegions <- import(bed)
+file <- system.file("extdata",
+                    "altRegions.GRCh38.bed.gz",
+                    package="RangesTutorial2017")
+altRegions <- import(file)
 seqlevelsStyle(altRegions) <- "NCBI"
 altRegions <-
     keepStandardChromosomes(altRegions,

@@ -2,143 +2,190 @@
 #+TITLE: Exploring the Ranges Infrastructure
 
 #+OPTIONS: toc:t H:2
-#+PROPERTY: session *R:RangesTutorial2017*
+#+PROPERTY: session *R:4*
 #+PROPERTY: exports both
 #+PROPERTY: results output
 #+PROPERTY: eval no-export
 #+PROPERTY: tangle yes
 
-#+begin_latex
-\tikzset{
-  every overlay node/.style={
-    draw=black,fill=white,rounded corners,anchor=north west,
-  },
+#+BEGIN_LaTeX
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>{Outline}
+    \tableofcontents[currentsection]
+  \end{frame}
 }
-% Usage:
-% \tikzoverlay at (-1cm,-5cm) {content};
-% or
-% \tikzoverlay[text width=5cm] at (-1cm,-5cm) {content};
-\def\tikzoverlay{%
-   \tikz[baseline,overlay]\node[every overlay node]
-}%
-#+end_latex
+#+END_LaTeX
 
 * Introduction
 ** The Ranges infrastructure: what is it good for?
-   # TODO: make hexicons for these, use instead of text
-   #       use hexicons in latter slides to refer back
-   #       could have arrows indicating natural progression from
-   #       exploration => methods development => software
-   Provides *data structures* and *algorithms* for:
-   * Data integration in exploratory analyses
-   * Developing and prototyping methods
-   * Software integration
+   [[file:insights.pdf]]
 
-** Software integration
-   # The architecture of the infrastructure (dependencies)
-   # Including # of reverse deps for each package
-   # Could we do this with hexicons? And then use them throughout the
-   #   presentation to indicate which package(s) we are using?
-   # Could use vertical dimension to indicate dependencies,
-   # horizontal to indicate workflow?
-   # - For example, rtracklayer is for data access.
-   # Could have grayed out hexicons for important pieces that are not
-   # part of the infrastructure proper.
+** Integrative data analysis
+   [[file:igv.JPG]]
+   # Different types of data can be stored in compatible data structures
+   # Genomic data are all related through genomic coordinates
    
-** Data processing pipelines
-   # Have pipeline icon, with attached icons for each of these
-   Examples (from my previous tutorials):
-   * Peak calling
-   * Isoform-specific read counting
-   * Variant calling (twice)
+** Developing and prototyping methods
+*** Columns
+   :PROPERTIES:
+   :BEAMER_env: columns
+   :END:
+  
+**** Peak calling						      :BMCOL:
+     :PROPERTIES:
+     :BEAMER_col: 0.3
+     :BEAMER_env: block
+     :END:
+    [[file:peak-calling.png]]
 
-** Data integration
-   # Should show a genome browser plot here
-   # - Could be same plot as for Data types slide, below
-   * Different types of data can be stored in compatible data structures
-   * Genomic data are all related through genomic coordinates
-
+**** Isoform expression						      :BMCOL:
+     :PROPERTIES:
+     :BEAMER_col: 0.3
+     :BEAMER_env: block
+     :END:
+     [[file:isoform.jpg]]
+    
+**** Variant calling						      :BMCOL:
+     :PROPERTIES:
+     :BEAMER_col: 0.3
+     :BEAMER_env: block
+     :END:
+     [[file:pileup.png]]
+    
+** Software integration
+   #+ATTR_latex: :width 8cm
+   [[file:sticker-integration.pdf]]
+   
 * Data structures
 ** Data types
-   * Ranges on the genome or other set of sequences
-   * Genome-scale vectors, like coverage
-   * Summarized assay data, typically range-associated
-
-   # TODO: perhaps a ranges-linked-to-data plot?
-   # - should include ranges and coverage/conservation or something
-
-** SummarizedExperiment: the central data model
-   # data processing => canonical SE diagram => modeling, plots
-   
+*** Columns
+   :PROPERTIES:
+   :BEAMER_env: columns
+   :END:
+**** Data on genomic ranges					      :BMCOL:
+     :PROPERTIES:
+     :BEAMER_col: 0.5
+     :BEAMER_env: block
+     :END:
+     [[file:karyogram.png]]
+    
+**** Summarized data 						      :BMCOL:
+     :PROPERTIES:
+     :BEAMER_col: 0.5
+     :BEAMER_env: block
+     :END:
+     [[file:summarized.jpg]]
+  
 ** Reality
+   :PROPERTIES:
+   :ID:       B215883B-F6BB-46A6-B7FF-0667AB947F0A
+   :END:
    * In practice, we have a BED file:
-
-     # Some > ls *.bed call with output
-
-   * And we turn to R as a convenient way to analyze the data
-
-     # Example of read.table(), head()
-
-   * And everything makes sense
+     #+begin_src bash
+     bash-3.2$  ls *.bed
+     #+end_src
+     #+begin_example
+     my.bed
+     #+end_example
+     
+   * And we turn to R to analyze the data
+     #+begin_src R
+       df <- read.table("my.bed", sep="\t")
+       colnames(df) <- c("chrom", "start", "end")
+     #+end_src     
+     #+begin_example
+  chrom     start       end
+1  chr7 127471196 127472363
+2  chr7 127472363 127473530
+3  chr7 127473530 127474697
+4  chr9 127474697 127475864
+5  chr9 127475864 127477031
+     #+end_example
      
 ** Reality bites
-   * Now for a GFF file:
-
-  # 2) Difficulty validating input to functions.
-  
-   * Oops, confused about the column name
-
-   * But wait, do ranges start at 0 or 1, open or closed?
+   :PROPERTIES:
+   :ID:       2D787635-4F9D-4AF9-B810-AD8BED7B5BB5
+   :END:
+   Now for a GFF file:
+     #+begin_src R
+       df <- read.table("my.bed", sep="\t")
+       colnames(df) <- c("chr", "start", "end")
+     #+end_src
      
-  # 1) Format peculiarities: have to subtract 1 from the start.
+*** Columns							  :B_columns:
+    :PROPERTIES:
+    :BEAMER_env: columns
+    :END:
+    
+*** GFF 							      :BMCOL:
+    :PROPERTIES:
+    :BEAMER_col: 0.5
+    :BEAMER_env: block
+    :END:
+
+    #+begin_example
+   chr     start       end
+1 chr7 127471197 127472363
+2 chr7 127472364 127473530
+3 chr7 127473531 127474697
+4 chr9 127474698 127475864
+5 chr9 127475865 127477031
+    #+end_example
+    
+*** BED 							      :BMCOL:
+    :PROPERTIES:
+    :BEAMER_col: 0.5
+    :BEAMER_env: block
+    :END:
+
+    #+begin_example
+  chrom     start       end
+1  chr7 127471196 127472363
+2  chr7 127472363 127473530
+3  chr7 127473530 127474697
+4  chr9 127474697 127475864
+5  chr9 127475864 127477031
+     #+end_example
 
 ** From reality to ideality
    #+begin_latex
    \framesubtitle{The abstraction gradient}
    #+end_latex
+   [[file:evolution.pdf]]
+   
    * Abstraction is semantic enrichment
      * Enables the user to think of data in terms of the problem domain
      * Hides implementation details
-       
-   # step-wise increasing 'abstraction level' plot, above which
-   # we have a BED file (icon) and tools with thought bubbles
-   #
-   # sed/awk .:`"A text file"
-   # read.table() .:`"A tab-separated file representing a table"
-   # rtracklayer::import .:`"A BED file representing genomic ranges"
-   # user .:`"Gene coordinates"
+     * Unifies frameworks
 
-   # Only the user is aware of the abstraction target, so the user
-   # is responsible for informing the system about the semantics.
+** GRanges: data on genomic ranges
+      [[file:granges.pdf]]
    
-** Abstraction in practice
-   * Data distribution relies on low-level (LCD) communication
-   * Only the user is aware of the abstraction target, so the user is
-     responsible for informing the system about the semantics.
-     
-  # Could make the case that constructing formal objects is
-  # analogous to tidying step in data science workflow.
-  
-   * Science defies rigidity: we need hybrid objects that combine
+
+   | seqnames | start | end | strand | ... |
+   |----------+-------+-----+--------+-----|
+   | chr1     |     1 |  10 | +      |     |
+   | chr1     |    15 |  24 | -      |     |
+
+   * Plus, sequence information (lengths, genome, etc)
+
+** Semantic slack
+   [[file:mcols-bridge.pdf]]
+   
+   * Science defies rigidity: we define flexible objects that combine
      strongly typed fields with arbitrary user-level metadata
 
-** Classes are tools for abstraction
-   * Class name is a convenient alias for a semantics definition
-   * Formal representation of structure and constraints, with
-     automatic validation
-   * Inheritance enables:
-     * Providing multiple implementations, transparent to the user
-     * Layering of semantics, enabling interoperability between tools
-       with different but consistent interpretations of the data
-     
-   # diagram of VRanges => GRanges, findOverlaps() [arrow to GRanges]
-   # just sees ranges (thought bubble), match() [arrow to VRanges],
-   # "ALT matters" (thought bubble).
+** Abstraction is the responsibility of the user
+   [[file:data-science-explore-clean.png]]
    
-** There's a class for that
-  # Then show mapping from data types to classes, using arrows
-  # between hexicons. Maybe just unlabeled to labeled? Or
-  # scratch out the generic names and replace with class names?
+   * Only the user knows the true semantics of the data
+   * Explicitly declaring semantics:
+     * Helps the software do the right thing
+     * Helps the user be more /expressive/
+
+** SummarizedExperiment: the central data model
+   [[file:se.jpg]]   
 
 * Algorithms
 ** The Ranges API
@@ -156,16 +203,12 @@
    | *Aggregation* | coverage(), reduce()      | intersect(), union() |
    | *Comparison*  | findOverlaps(), nearest() | match(), sort()      |
    
-** Range transformations
-   # data processing
-   # figure from the Ranges paper?
+** Range algebra
+   [[file:range-algebra.pdf]]
 
-** Coverage
-   # data processing
-   
 ** Overlap detection
-   # processing, data integration (joins!)
-   
+    [[file:overlaps.png]]
+
 * Example workflow: Structural variants
 ** Structural variants are important for disease
    * SVs are rarer than SNVs
@@ -180,12 +223,13 @@
        (or indels)
 
 ** Detection of deletions from WGS data
-   #+LATEX: :width 11cm
-   [[file:slides/sv-detection-1.pdf]]
+   #+attr_LATEX: :width 11cm
+   [[file:sv-detection-1.pdf]]
    
-** Problem
-   * Often need to evaluate a tool before adding it to our workflow
-   * "lumpy" is a popular SV caller
+** Motivation
+*** Problem
+    * Often need to evaluate a tool before adding it to our workflow
+    * "lumpy" is a popular SV caller
 
 *** Goal
     Evaluate the performance of lumpy
@@ -221,8 +265,9 @@
 ** Data cleaning
    Make the seqlevels compatible:
    #+begin_src R
-   seqlevelsStyle(calls) <- "NCBI"
-   truth <- keepStandardChromosomes(truth, pruning.mode="coarse")
+     seqlevelsStyle(calls) <- "NCBI"
+     truth <- keepStandardChromosomes(truth,
+                                      pruning.mode="coarse")
    #+end_src
 
 ** Tighten
@@ -257,7 +302,8 @@
    #+begin_src R
      hits <- as(hits, "List")
      call_rl <- extractList(ranges(calls), hits)
-     dev <- abs(start(truth) - start(call_rl)) + abs(end(truth) - end(call_rl))
+     dev <- abs(start(truth) - start(call_rl)) +
+         abs(end(truth) - end(call_rl))
    #+end_src
 
    Select and store the call with the least deviance, per true deletion:
@@ -278,18 +324,23 @@
    #+end_src
 
 ** Choosing a deviance cutoff
+   #+attr_LATEX: :width 7cm
    [[file:ecdf-deviance.pdf]]
 
 ** Applying the deviance filter
    #+begin_src R
-     truth$called <- with(truth, !is.na(deviance) & deviance <= 300)
+     truth$called <-
+         with(truth, !is.na(deviance) & deviance <= 300)
    #+end_src
    
 ** Sensitivity
    #+begin_src R
    mean(truth$called)
    #+end_src
-   
+
+   #+RESULTS:
+   : [1] 0.8214107
+
 ** Specificity
    Determine which calls were true:
    #+begin_src R
@@ -301,20 +352,40 @@
    #+begin_src R
      mean(calls$fp)
    #+end_src
+
+   #+RESULTS:
+   : [1] 0.1009852
+
    
-** FDR and variable "alt" regions
+** Explaining the FDR
+   :PROPERTIES:
+   :ID:       8935398E-2BE9-4C62-B35A-0FFBD1B6F869
+   :END:
    * Suspect that calls may be error-prone in regions where the
      population varies
    * Load alt regions from a BED file:
      #+begin_src R
-       altRegions <- import(system.file("extdata", "altRegions.GRCh38.bed.gz",
-                                        package="RangesTutorial2017"))
+       file <- system.file("extdata",
+                           "altRegions.GRCh38.bed.gz",
+                           package="RangesTutorial2017")
+       altRegions <- import(file)
        seqlevelsStyle(altRegions) <- "NCBI"
-       altRegions <- keepStandardChromosomes(altRegions, pruning.mode="coarse")
+       altRegions <-
+           keepStandardChromosomes(altRegions,
+                                   pruning.mode="coarse")
      #+end_src
+
+** FDR and variable "alt" regions
    * Compute the association between FP status and overlap of an alt
      region:
      #+begin_src R
        calls$inAlt <- calls %over% altRegions
        xtabs(~ inAlt + fp, calls)
      #+end_src
+
+     #+RESULTS:
+     :        fp
+     : inAlt   FALSE TRUE
+     :   FALSE  1402  112
+     :   TRUE     58   52
+
